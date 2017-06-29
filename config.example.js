@@ -16,15 +16,28 @@ module.exports = {
 	],
 
 	telepulesID: 1843,
+	maxDisance: 200,
+	maxPrice: 2000000, 
 	cookie: 'cookie=cookie; talalatokszama=100; results=100;',
 
 	slackWebHook: "",
 
 	email: {
-		mailgunKey: "<PASTE HERE YOUR API KEY FROM MAILGUN.COM>",
+		mailgunKey: "<PASTE HERE YOUR API KEY FROM MAILGUN.COM OR USE SMTP>",
+		smtp: {
+			host: 'smtp.yoursmtpserver.com',
+			port: 465,
+			secure: true, // secure:true for port 465, secure:false for port 587
+			auth: {
+				user: 'smtpmailaddress@example.com',
+				cryptedPass: "19590f6521a29989569b3c5d718c4a1319b0f3054b"
+			},
+		},
+
 		subject: "{0} új használtautó!",
 		recipients: [
-			"gipsz.jakab@company.com"
+			"yourmail1@example.com",
+			"yourmail2@example.com"
 		]
 	}
 }

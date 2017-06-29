@@ -7,6 +7,16 @@ var scrape = require("scrape-it");
 var cheerio = require("cheerio");
 var request = require("request");
 var colors = require("colors");
+const nodemailer = require('nodemailer');
+var Cryptr = require('cryptr');
+
+var Mailgun = require('mailgun').Mailgun;
+var config = require("./config");
+
+cryptr = new Cryptr('EWTZ+W!%BZE!Z!EZUBGE!ZV!%ZE!UGE!%RG/UR/GVJ%EVSEZG!E%ZE!%UE');
+
+var encryptedString = cryptr.encrypt('Nemtomhogymi1456987??');
+console.log(encryptedString);
 
 if (!fs.existsSync("./config.js")) {
 	console.error(colors.bgRed("A config.js fájl nem található. Nevezze át a mappában található " + colors.bold("config.example.js") + " fájlt " + colors.bold("config.js") + " fájlra és módosítsa a tartalmát. Adja meg a keresési linkeket, illetve az e-mail küldéshez szükséges adatokat."));
@@ -14,11 +24,41 @@ if (!fs.existsSync("./config.js")) {
 	return;
 }
 
-var config = require("./config");
+// MAIL
+var mg, transporter, emailType, mailOptions;
 
-var Mailgun = require('mailgun').Mailgun;
-var mg = new Mailgun(config.email && config.email.mailgunKey ? config.email.mailgunKey : null);
+if(config.email && config.email.recipients && config.email.recipients.length > 0){
+	var m = config.email.mailgunKey
+	if (m && !m.indexOf("HERE") == -1) {
 
+		emailType = "mailgun";
+		mg = new Mailgun(config.email.mailgunKey);
+
+	} else if (config.email.smtp) {
+
+		emailtype = "stmp";
+		transporter = nodemailer.createTransport({
+
+			host: config.email.smtp.host ? config.email.smtp.host : null,
+			port: config.email.smtp.port ? config.email.smtp.port : 465,
+			secure: config.email.smtp.secure, // secure:true for port 465, secure:false for port 587
+			auth: {
+				user: config.email.smtp.auth.user ? config.email.smtp.auth.user : null,
+				pass: config.email.smtp.auth.cryptedPass ?  cryptr.decrypt(config.email.smtp.auth.cryptedPass) : null
+			}
+
+		});
+
+	} else {
+
+		console.error(colors.bgRed(colors.bold("config.js") + " fájlban adja meg az e-mail küldéshez szükséges adatokat!"));
+		process.exit(1);
+		return;
+	}	
+}
+
+var maxDistance = config.maxDisance ? config.maxDisance : 9999 ;
+var maxPrice = config.maxPrice ? config.maxPrice : 99999 ;
 var dataDir = path.join(__dirname, config.dataDir || "./data"); 
 mkdir(dataDir);
 
@@ -28,6 +68,8 @@ var format = function(format) {
 			format = format.replace(/\{\d+?\}/, arguments[i]);
 	return format;
 };
+
+// === VOIDS ===
 
 function listCars(url, done) {
 
@@ -163,37 +205,48 @@ function doWork() {
 				var txt = [];
 
 				newCars.forEach(function(car) {
-					txt.push(car.title);
-					txt.push(car.description);
-					txt.push("Ár: " + car.price);
-					txt.push("Link: " + car.link);
-					txt.push("Távolság: " + car.distance);
-					txt.push("ID: " + car.id);
 
-					txt.push("---------------------");
-					txt.push(" ");
+					// "12 km-re" --> 12
+					var distance = parseInt(car.distance.slice(0, -6));
 
-					if (config.slackWebHook) {
+					// "1.234.567 Ft" --> 1234567
+					var price = parseInt(car.price.replace(".", "").replace(".", "").replace(".", ""));
 
-						request({
-							method: "POST",
-							url: config.slackWebHook,
+					if(distance <= maxDistance && price <= maxPrice) {
 
-							json: {
-								text: car.title + "\n" + 
-									  car.description + "\n" + 
-									  "Ár: " + car.price + "\n" + 
-									  "Link: " + car.link + "\n" + 
-									  "Távolság: " + car.distance + "\n" + 
-									  "ID: " + car.id
-							}
-						}, function(err, response, body ) {
-							if (err) {
-								return console.error(err);
-							}					
+						txt.push(car.title);
+						txt.push(car.description);
+						txt.push("Ár: " + car.price);
+						txt.push("Link: " + car.link);
+						txt.push("Távolság: " + car.distance);
+						txt.push("ID: " + car.id);
 
-							console.log("Slack-re továbbítva.");
-						});
+						txt.push("---------------------");
+						txt.push(" ");
+
+						if (config.slackWebHook) {
+
+							request({
+								method: "POST",
+								url: config.slackWebHook,
+
+								json: {
+									text: car.title + "\n" + 
+										car.description + "\n" + 
+										"Ár: " + car.price + "\n" + 
+										"Link: " + car.link + "\n" + 
+										"Távolság: " + car.distance + "\n" + 
+										"ID: " + car.id
+								}
+							}, function(err, response, body ) {
+								if (err) {
+									return console.error(err);
+								}					
+
+								console.log("Slack-re továbbítva.");
+							});
+						}
+
 					}
 
 				});
@@ -201,12 +254,32 @@ function doWork() {
 				if (config.email && config.email.recipients && config.email.recipients.length > 0) {
 					var subject = format(config.email.subject || "{0} új használtautó!", newCars.length);
 
-					mg.sendText("hasznaltauto-figyelo@mail.com", config.email.recipients, subject, txt.join("\r\n"), function(err) {
-						if (err)
-							return console.error("Email küldési hiba!", err);
+					if (emailType == "mailgun"){
 
-						console.log("Email kiküldve az alábbi címekre: " + config.email.recipients.join(", ").bold);
-					});
+						mg.sendText("hasznaltauto-figyelo@mail.com", config.email.recipients, subject, txt.join("\r\n"), function(err) {
+							
+							if (err) return console.error("Email küldési hiba!", err);
+
+							console.log("Email kiküldve az alábbi címekre: " + config.email.recipients.join(", ").bold);
+						});
+
+					} else {
+
+						mailOptions = {
+							from: '"Autó kereső" <keresek@csakneked.hu>', // sender address
+							to: config.email.recipients && config.email.recipients.length > 0 ? config.email.recipients[0] : null,
+							text: txt.join("\r\n"),
+							subject: subject
+						};
+
+						// send mail with defined transport object
+						transporter.sendMail(mailOptions, (err, info) => {
+							
+							if (err) return console.error("Email küldési hiba!", err);
+							
+							console.log("Email kiküldve az alábbi címekre: " + config.email.recipients.join(", ").bold);
+						});
+					}
 				}
 			}
 
@@ -219,6 +292,10 @@ function doWork() {
 
 }
 
+function replaceAll(str, find, replace) {
+    return str.replace(new RegExp(find, 'g'), replace);
+}
+
 
 setInterval(function() {
 	doWork();
@@ -227,7 +304,7 @@ setInterval(function() {
 console.log(colors.bold("\n\nFigyelő indítása... Frissítési idő: " + (config.time || 10) + " perc"));
 console.log("------------------\n");
 
-loadLists();
+//loadLists();
 
 
 setTimeout(function() {
