@@ -1,12 +1,13 @@
+Powered by [icebob/hasznaltauto-figyelo](https://github.com/icebob/hasznaltauto-figyelo)
 # hasznaltauto-figyelo
 Ez az alkalmazás képes a hasznaltauto.hu oldalon beállított keresések találatainak figyelésére. Ha a találatok között megjelenik egy új elem, akkor arról e-mail értesítést küld a főbb adatokkal és az oldal linkjével.
 
 ## Telepítés
 A telepítéshez vagy le kell klónozni ezt a tárolót
 ```
-git clone https://github.com/icebob/hasznaltauto-figyelo.git
+git clone https://github.com/istenesimre/hasznaltauto-figyelo.git
 ```
-vagy letölteni [ZIP-ben](https://github.com/icebob/hasznaltauto-figyelo/archive/master.zip) és kicsomagolni.
+vagy letölteni [ZIP-ben](https://github.com/istenesimre/hasznaltauto-figyelo/archive/master.zip) és kicsomagolni.
 
 Az alkalmazás NodeJS alapú, így szükséges [NodeJS telepítése](https://nodejs.org/en/download/package-manager/).
 
@@ -22,8 +23,6 @@ A program futtatásához az alábbi parancsot kell kiadni parancssorban:
 ```bash
 node index.js
 ```
-
-Az első indítás során a program hibát jelezhet, hogy nem találja a `config.js` fájlt. Ez esetben a mappában található `config.example.js` fájlt át kell nevezni config.js-re és a benne lévő adatokat megváltoztatni. Ennek leírását lásd a következő részben.
 
 ## Konfigurálás
 Az alkalmazás konfigurációja a `config.js` fájlban található.
@@ -42,13 +41,28 @@ module.exports = {
 	],
 
 	telepulesID: 1843,
+	maxDisance: 200,
+	maxPrice: 2000000, 
 	cookie: 'cookie=cookie; talalatokszama=100; results=100;',
 
+	slackWebHook: "",
+
 	email: {
-		mailgunKey: "<PASTE HERE YOUR API KEY FROM MAILGUN.COM>",
+		mailgunKey: "<PASTE HERE YOUR API KEY FROM MAILGUN.COM OR USE SMTP>",
+		smtp: {
+			host: 'smtp.yoursmtpserver.com',
+			port: 465,
+			secure: true, // secure:true for port 465, secure:false for port 587
+			auth: {
+				user: 'smtpmailaddress@example.com',
+				cryptedPass: "19590f6521a29989569b3c5d718c4a1319b0f3054b"
+			},
+		},
+
 		subject: "{0} új használtautó!",
 		recipients: [
-			"gipsz.jakab@company.com"
+			"yourmail1@example.com",
+			"yourmail2@example.com"
 		]
 	}
 }
@@ -56,18 +70,27 @@ module.exports = {
 
 Beállítások leírása:
 
-- **time**: a frissítési idő percekben. Ennyi időnként fut le a figyelés
-- **dataDir**: munkakönyvtár. Célszerű nem megváltoztatni
-- **searches**: a keresési linkeket tartalmazó tömb. Több elemet is tartalmazhat
-  - **id**: keresési azonosítója. Csak latin betűket és számokat tartalmazhat szóköz nélkül. Egy egyszerű név, a program a fájlnévként használja ezt az azonosítót. Lehet fantázianév, csak legyen **egyedi**
-  - **name**: a keresés beszédes fantázia neve (a parancssorban jelenik meg)
+- **time**: a frissítési idő percekben. Ennyi időnként fut le a figyelés.
+- **dataDir**: munkakönyvtár. Célszerű nem megváltoztatni.
+- **searches**: a keresési linkeket tartalmazó tömb. Több elemet is tartalmazhat.
+  - **id**: keresési azonosítója. Csak latin betűket és számokat tartalmazhat szóköz nélkül. Egy egyszerű név, a program a fájlnévként használja ezt az azonosítót. Lehet fantázianév, csak legyen **egyedi**.
+  - **name**: a keresés beszédes fantázia neve (a parancssorban jelenik meg).
   - **url**: a keresés linkje. A hasznaltauto.hu oldalon összeállított kereséshez tartozó URL.
-- **telepulesID** - a távolságszámításhoz használt település azonosító (hasznaltauto.hu oldalon lévő cookie-ból nyerhető id az adat)
+- **telepulesID** - a távolságszámításhoz használt település azonosító (hasznaltauto.hu oldalon lévő cookie-ból nyerhető id az adat).
+- **maxDistance** - maximum távolság kilométerben, amin túl ignorálja a találatot.
+- **maxPrice** - maximum ár, amin felül ignorálja a találatot.
 - **cookie** - a kereséshez használt egyéb cookie mezők. Célszerű nem változtatni. 
-- **email** - e-mail értesítéshez tartozó beállítások
-  - **mailgunKey** - a program az email küldéséhez a mailgun ingyenes szolgáltatását használja. Ehhez az oldalon be kell regisztrálni az ingyenes csomagra és az ott kapott `Secret API key`-t ide bemásolni
-  - **subject** - a levél fejléce. A `{0}` rész kicserélődik a talált új autók számára
-  - **recipients** - a címzettek e-mail címe. Több is megadható
+- **email** - e-mail értesítéshez tartozó beállítások.
+  - **mailgunKey** - a program az email küldéséhez a mailgun ingyenes szolgáltatását használja. Ehhez az oldalon be kell regisztrálni az ingyenes csomagra és az ott kapott `Secret API key`-t ide bemásolni.
+  - **smtp** - email küldése SMTP szerveren keresztül.
+   - **host** - SMTP szerver címe.
+   - **port** - SMTP szerver portja. SSL/TLS: 465, nélküle 587.
+   - **secure** - SSL/TLS: true, egyébként false.
+   - **user** - SMTP felhasználónév.
+   - **cryptedPass** - `Cryptr`-el titkosított jelszó.
+  - **subject** - a levél fejléce. A `{0}` rész kicserélődik a talált új autók számára.
+  - **recipients** - a címzettek e-mail címe. Több is megadható.
 
 ## License
 [MIT license](https://tldrlegal.com/license/mit-license).
+THX [icebob](https://github.com/icebob) Sensei!
